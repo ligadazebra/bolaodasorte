@@ -570,6 +570,21 @@ function tempoRestanteMs(dataStr){
   if(isNaN(alvo)) return Infinity;
   return alvo - Date.now();
 }
+
+/* ---------- Fechamento automático das apostas ----------
+   As apostas encerram quando o primeiro jogo (o que começa mais cedo) inicia. */
+let autoCloseFeito = false;
+function fechamentoRodada(){
+  if(!rodada || !Array.isArray(rodada.jogos)) return Infinity;
+  const datas = rodada.jogos
+    .map(j => (j && j.data) ? new Date(j.data).getTime() : NaN)
+    .filter(t => !isNaN(t));
+  return datas.length ? Math.min(...datas) : Infinity;
+}
+function apostasEncerradasPorTempo(){
+  return Date.now() >= fechamentoRodada();
+}
+
 function fmtContagem(ms){
   if(ms <= 0) return 'Encerrado';
   const s = Math.floor(ms / 1000);
@@ -581,16 +596,12 @@ function fmtContagem(ms){
   return `⏱️ ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(seg).padStart(2,'0')}`;
 }
 setInterval(() => {
-  let algumFechouAgora = false;
   document.querySelectorAll('[data-contagem]').forEach(el => {
     const alvo = el.dataset.target;
     if(!alvo) return;
     const restante = tempoRestanteMs(alvo);
     if(restante <= 0){
-      if(el.textContent !== 'Encerrado'){
-        el.textContent = 'Encerrado';
-        algumFechouAgora = true;
-      }
+      if(el.textContent !== 'Encerrado') el.textContent = 'Encerrado';
       el.classList.remove('contagem-urgente');
       const idx = el.dataset.idx;
       if(idx !== undefined){
@@ -609,6 +620,15 @@ setInterval(() => {
       el.classList.toggle('contagem-urgente', restante < 3600000);
     }
   });
+
+  // Encerra a rodada assim que o primeiro jogo começa
+  if(rodada && rodada.status === 'aberta' && apostasEncerradasPorTempo() && !autoCloseFeito){
+    autoCloseFeito = true;
+    renderRodada(); // esconde o formulário de palpite para todos
+    if(isAdmin){    // admin online grava o fechamento no banco
+      db.ref(ROOT + '/rodadaAtual/status').set('fechada').catch(() => {});
+    }
+  }
 }, 1000);
 
 /* ---------- Tema claro/escuro ---------- */
@@ -704,6 +724,7 @@ db.ref(ROOT + '/acumulado').on('value', snap => {
 });
 db.ref(ROOT + '/rodadaAtual').on('value', snap => {
   rodada = snap.val();
+  autoCloseFeito = false; // reavalia o fechamento a cada mudança de rodada
   attachPalpitesListener();
   renderRodada();
   renderAdminRodada();
@@ -815,14 +836,15 @@ function renderPrizeBoard(){
 function renderRodada(){
   const area = $('gamesArea');
   const form = $('betFormArea');
-  const aberta = rodada && rodada.status === 'aberta' && Array.isArray(rodada.jogos) && rodada.jogos.length === 3;
+  const encerradaTempo = apostasEncerradasPorTempo();
+  const aberta = rodada && rodada.status === 'aberta' && !encerradaTempo && Array.isArray(rodada.jogos) && rodada.jogos.length === 3;
 
   $('roundNum').textContent = rodada && rodada.numero ? rodada.numero : '–';
   const statusTxt = !rodada ? 'sem rodada' :
-    rodada.status === 'aberta' ? 'apostas abertas' :
-    rodada.status === 'apurada' ? 'resultado publicado' : 'apostas encerradas';
+    rodada.status === 'apurada' ? 'resultado publicado' :
+    (rodada.status === 'aberta' && !encerradaTempo) ? 'apostas abertas' : 'apostas encerradas';
   $('roundStatus').textContent = statusTxt;
-  $('roundDot').className = 'dot' + (rodada && rodada.status === 'aberta' ? '' : ' closed');
+  $('roundDot').className = 'dot' + (aberta ? '' : ' closed');
 
   if(!aberta){
     if(rodada && Array.isArray(rodada.jogos) && rodada.jogos.length === 3){
@@ -912,6 +934,7 @@ function renderRanking(){
 /* ---------- Envio de palpite ---------- */
 $('btnEnviarPalpite').addEventListener('click', () => {
   if(!rodada || rodada.status !== 'aberta'){ toast('As apostas estão encerradas.'); return; }
+  if(apostasEncerradasPorTempo()){ toast('As apostas foram encerradas — o primeiro jogo já começou.'); renderRodada(); return; }
   $('avisoDuplicado').classList.remove('show');
   const nome = $('betNome').value.trim();
   const whats = soNumeros($('betWhats').value);
@@ -1176,8 +1199,11 @@ function salvarRodada(){
 
   const numero = rodada && rodada.numero ? rodada.numero : 1;
   const status = rodada && rodada.status ? rodada.status : 'aberta';
+  // Horário de fechamento = início do primeiro jogo (o mais cedo). Reforça o corte na regra do Firebase.
+  const datas = jogos.map(j => j.data ? new Date(j.data).getTime() : NaN).filter(t => !isNaN(t));
+  const fechamento = datas.length ? Math.min(...datas) : null;
   Promise.all([
-    db.ref(ROOT + '/rodadaAtual').update({ numero, status, jogos }),
+    db.ref(ROOT + '/rodadaAtual').update({ numero, status, jogos, fechamento }),
     db.ref(ROOT + '/config/valorAposta').set(valor)
   ]).then(() => toast('Rodada salva.'))
     .catch(err => toast('Erro: ' + err.message));
