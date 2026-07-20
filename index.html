@@ -254,8 +254,8 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
   <section>
     <div class="sec-title">Premiação da rodada</div>
     <div class="arrecadado-hero">
-      <div class="arrecadado-lbl">💰 Total arrecadado na rodada</div>
-      <div class="arrecadado-valor" id="valArrecadado">R$ 0,00</div>
+      <div class="arrecadado-lbl">🏆 Prêmio estimado da rodada</div>
+      <div class="arrecadado-valor" id="valPote">R$ 0,00</div>
       <div class="arrecadado-sub" id="valArrecadadoSub">0 apostas pagas</div>
     </div>
     <div class="prize-board">
@@ -272,8 +272,8 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         <div class="val" id="valAcumulado">R$ 0,00</div>
       </div>
       <div class="prize-cell gold">
-        <div class="lbl">Prêmio estimado</div>
-        <div class="val" id="valPote">R$ 0,00</div>
+        <div class="lbl">Total arrecadado</div>
+        <div class="val" id="valArrecadado">R$ 0,00</div>
       </div>
     </div>
   </section>
@@ -363,8 +363,12 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
   <div class="modal">
     <h2>Área restrita <button class="close-x" onclick="closeOverlay('loginOverlay')">×</button></h2>
     <div class="field">
-      <label for="adminSenha">Senha da administração</label>
-      <input type="password" id="adminSenha" placeholder="••••••••">
+      <label for="adminEmail">E-mail</label>
+      <input type="email" id="adminEmail" autocomplete="username" placeholder="voce@exemplo.com">
+    </div>
+    <div class="field">
+      <label for="adminSenha">Senha</label>
+      <input type="password" id="adminSenha" autocomplete="current-password" placeholder="••••••••">
     </div>
     <button class="btn btn-primary" onclick="loginAdmin()">Entrar</button>
   </div>
@@ -457,8 +461,10 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         <img id="cfgBannerPreview" class="thumb" style="display:none" alt="Banner atual">
         <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="removerBanner()">Remover banner</button>
       </div>
-      <div class="field"><label for="cfgSenha">Nova senha da administração (deixe em branco para manter)</label><input id="cfgSenha" type="password" maxlength="40" placeholder="••••••••"></div>
+      <div class="field"><label for="cfgSenha">Nova senha de acesso (mín. 6 caracteres — deixe em branco para manter)</label><input id="cfgSenha" type="password" autocomplete="new-password" maxlength="40" placeholder="••••••••"></div>
       <button class="btn btn-primary" onclick="salvarConfig()">Salvar configurações</button>
+      <div class="hr"></div>
+      <button class="btn btn-ghost" onclick="logoutAdmin()">Sair da administração</button>
     </div>
 
   </div>
@@ -490,6 +496,7 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script>
 /* =========================================================
    CONFIGURAÇÃO DO FIREBASE — COLE AQUI A SUA CONFIG
@@ -506,10 +513,10 @@ const firebaseConfig = {
   measurementId: "G-277Y46TN12"
 };
 const ROOT = 'placarCravado';          // raiz dos dados no Realtime Database
-const SENHA_PADRAO = 'admin123';       // usada enquanto nenhuma senha for salva
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
 
 /* ---------- Estado ---------- */
 let cfg = {};
@@ -999,22 +1006,47 @@ $('siteHeader').addEventListener('click', () => {
   if(tapCount >= 5){
     tapCount = 0;
     if(isAdmin) openOverlay('adminOverlay');
-    else { $('adminSenha').value = ''; openOverlay('loginOverlay'); setTimeout(()=>$('adminSenha').focus(),150); }
+    else { $('adminEmail').value = ''; $('adminSenha').value = ''; openOverlay('loginOverlay'); setTimeout(()=>$('adminEmail').focus(),150); }
   }
 });
+$('adminEmail').addEventListener('keydown', e => { if(e.key === 'Enter') $('adminSenha').focus(); });
 $('adminSenha').addEventListener('keydown', e => { if(e.key === 'Enter') loginAdmin(); });
 
 function loginAdmin(){
+  const email = $('adminEmail').value.trim();
   const senha = $('adminSenha').value;
-  const senhaCorreta = cfg.senhAdmin || SENHA_PADRAO;
-  if(senha === senhaCorreta){
-    isAdmin = true;
-    closeOverlay('loginOverlay');
-    openOverlay('adminOverlay');
+  if(!email || !senha){ toast('Informe e-mail e senha.'); return; }
+  auth.signInWithEmailAndPassword(email, senha)
+    .then(() => {
+      $('adminSenha').value = '';
+      closeOverlay('loginOverlay');
+      openOverlay('adminOverlay');
+      toast('Bem-vindo à administração.');
+    })
+    .catch(err => {
+      const cod = err.code || '';
+      if(cod === 'auth/invalid-email') toast('E-mail inválido.');
+      else if(cod === 'auth/invalid-credential' || cod === 'auth/wrong-password' || cod === 'auth/user-not-found') toast('E-mail ou senha incorretos.');
+      else if(cod === 'auth/too-many-requests') toast('Muitas tentativas. Tente novamente mais tarde.');
+      else toast('Erro ao entrar: ' + err.message);
+    });
+}
+
+/* Mantém o estado de admin sincronizado com a sessão do Firebase */
+auth.onAuthStateChanged(user => {
+  isAdmin = !!user;
+  if(isAdmin){
     renderAdminRodada();
     renderAdminPalpites();
-    toast('Bem-vindo à administração.');
-  } else toast('Senha incorreta.');
+  } else {
+    closeOverlay('adminOverlay');
+  }
+});
+
+function logoutAdmin(){
+  auth.signOut()
+    .then(() => { closeOverlay('adminOverlay'); toast('Você saiu da administração.'); })
+    .catch(err => toast('Erro ao sair: ' + err.message));
 }
 
 function switchTab(btn){
@@ -1489,7 +1521,6 @@ function salvarConfig(){
     whatsAdmin: soNumeros($('cfgWhats').value) || null
   };
   const novaSenha = $('cfgSenha').value;
-  if(novaSenha) updates.senhAdmin = novaSenha;
 
   const tarefas = [];
   const qrFile = $('cfgQrFile').files[0];
@@ -1500,9 +1531,20 @@ function salvarConfig(){
   Promise.all(tarefas)
     .then(() => db.ref(ROOT + '/config').update(updates))
     .then(() => {
+      if(novaSenha){
+        const user = auth.currentUser;
+        if(!user) throw new Error('Sessão expirada. Entre novamente para trocar a senha.');
+        return user.updatePassword(novaSenha)
+          .then(() => toast('Configurações e nova senha salvas.'))
+          .catch(err => {
+            if(err.code === 'auth/weak-password') throw new Error('A senha deve ter pelo menos 6 caracteres.');
+            if(err.code === 'auth/requires-recent-login') throw new Error('Por segurança, saia e entre de novo antes de trocar a senha.');
+            throw err;
+          });
+      }
       toast('Configurações salvas.');
-      $('cfgSenha').value = ''; $('cfgQrFile').value = ''; $('cfgBannerFile').value = '';
     })
+    .then(() => { $('cfgSenha').value = ''; $('cfgQrFile').value = ''; $('cfgBannerFile').value = ''; })
     .catch(err => toast('Erro: ' + err.message));
 }
 
