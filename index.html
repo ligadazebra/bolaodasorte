@@ -951,8 +951,9 @@ $('btnEnviarPalpite').addEventListener('click', () => {
   for(let i = 0; i < 3; i++){
     const inputA = $('betA'+i), inputB = $('betB'+i);
     if(inputA.disabled){ toast('O tempo do jogo '+(i+1)+' já esgotou. Não é mais possível apostar nesta rodada.'); return; }
-    const a = inputA.value, b = inputB.value;
-    if(a === '' || b === ''){ toast('Preencha o placar dos 3 jogos.'); inputA.focus(); return; }
+    // Campo não alterado vale 0 (o placeholder já mostra 0)
+    const a = inputA.value === '' ? '0' : inputA.value;
+    const b = inputB.value === '' ? '0' : inputB.value;
     const ga = Number(a), gb = Number(b);
     if(isNaN(ga)||isNaN(gb)||ga<0||gb<0||ga>99||gb>99){ toast('Placar inválido no jogo '+(i+1)+'.'); return; }
     jogos.push({ golsA: ga, golsB: gb });
