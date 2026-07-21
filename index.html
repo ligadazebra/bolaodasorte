@@ -207,6 +207,8 @@ section{margin-bottom:26px}
 /* ---------- Aviso de palpite duplicado ---------- */
 .aviso-duplicado{background:var(--gold-soft);border:1px solid var(--gold);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--gold);display:none;align-items:center;gap:8px}
 .aviso-duplicado.show{display:flex}
+.check-manter{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:13px;color:var(--chalk-dim);cursor:pointer;user-select:none}
+.check-manter input{width:18px;height:18px;accent-color:var(--grass);cursor:pointer;flex-shrink:0}
 
 /* ---------- Popup simulador de prêmio ---------- */
 .popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px;pointer-events:none;transition:background .25s}
@@ -298,6 +300,10 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         <label for="betWhats">WhatsApp</label>
         <input id="betWhats" maxlength="20" inputmode="tel" placeholder="(77) 99999-9999">
       </div>
+      <label class="check-manter">
+        <input type="checkbox" id="betManterDados">
+        <span>Vou fazer mais de um palpite — manter meu nome e WhatsApp</span>
+      </label>
       <button class="btn btn-primary" id="btnEnviarPalpite">Confirmar palpite e pagar</button>
       <button class="btn btn-ghost" style="margin-top:8px" onclick="abrirSimulador()">💰 Simular quanto posso ganhar</button>
     </div>
@@ -970,7 +976,8 @@ $('btnEnviarPalpite').addEventListener('click', () => {
   }).then(() => {
     btn.disabled = false;
     abrirPagamento(nome, jogos);
-    $('betNome').value = ''; $('betWhats').value = '';
+    const manter = $('betManterDados').checked;
+    if(!manter){ $('betNome').value = ''; $('betWhats').value = ''; }
     for(let i = 0; i < 3; i++){ $('betA'+i).value = ''; $('betB'+i).value = ''; }
   }).catch(err => {
     btn.disabled = false;
