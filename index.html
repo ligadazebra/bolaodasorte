@@ -254,9 +254,8 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
   <section>
     <div class="sec-title">Premiação da rodada</div>
     <div class="arrecadado-hero">
-      <div class="arrecadado-lbl">💰 Total arrecadado na rodada</div>
-      <div class="arrecadado-valor" id="valArrecadado">R$ 0,00</div>
-      <div class="arrecadado-sub" id="valArrecadadoSub">0 apostas pagas</div>
+      <div class="arrecadado-lbl">🏆 Prêmio estimado</div>
+      <div class="arrecadado-valor" id="valPote">R$ 0,00</div>
     </div>
     <div class="prize-board">
       <div class="prize-cell">
@@ -272,8 +271,8 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         <div class="val" id="valAcumulado">R$ 0,00</div>
       </div>
       <div class="prize-cell gold">
-        <div class="lbl">Prêmio estimado</div>
-        <div class="val" id="valPote">R$ 0,00</div>
+        <div class="lbl">Total arrecadado na rodada</div>
+        <div class="val" id="valArrecadado">R$ 0,00</div>
       </div>
     </div>
   </section>
@@ -779,7 +778,6 @@ function renderPrizeBoard(){
   const jaApurada = rodada && rodada.status === 'apurada';
   const pote = jaApurada ? acumulado : (arrecadado * 0.8 + acumulado);
   $('valArrecadado').textContent = brl(arrecadado);
-  $('valArrecadadoSub').textContent = pagos + (pagos === 1 ? ' aposta paga' : ' apostas pagas');
   $('valAposta').textContent = valor ? brl(valor) : '–';
   $('valApostadores').textContent = pagos;
   $('valAcumulado').textContent = brl(acumulado);
