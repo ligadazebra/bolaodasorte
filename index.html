@@ -43,6 +43,10 @@ body.light{
 html{scroll-behavior:smooth}
 body{background:var(--pitch);color:var(--chalk);font-family:var(--font-body);min-height:100vh;padding-bottom:90px}
 img{max-width:100%;display:block}
+#appLoader{position:fixed;inset:0;z-index:9999;background:var(--pitch);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--chalk-dim);font-size:14px;transition:opacity .3s}
+#appLoader.hide{opacity:0;pointer-events:none}
+.loader-spin{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--grass);border-radius:50%;animation:loaderspin .8s linear infinite}
+@keyframes loaderspin{to{transform:rotate(360deg)}}
 button{font-family:inherit;cursor:pointer;border:none}
 input,select,textarea{font-family:inherit}
 ::selection{background:var(--grass);color:#06170D}
@@ -203,6 +207,8 @@ section{margin-bottom:26px}
 /* ---------- Aviso de palpite duplicado ---------- */
 .aviso-duplicado{background:var(--gold-soft);border:1px solid var(--gold);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--gold);display:none;align-items:center;gap:8px}
 .aviso-duplicado.show{display:flex}
+.check-manter{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:13px;color:var(--chalk-dim);cursor:pointer;user-select:none}
+.check-manter input{width:18px;height:18px;accent-color:var(--grass);cursor:pointer;flex-shrink:0}
 
 /* ---------- Popup simulador de prêmio ---------- */
 .popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px;pointer-events:none;transition:background .25s}
@@ -235,6 +241,8 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
 </head>
 <body>
 
+<div id="appLoader"><div class="loader-spin"></div><div>Carregando…</div></div>
+
 <header id="siteHeader">
   <button class="btn-tema" id="btnTema" onclick="event.stopPropagation();alternarTema()">🌙 Escuro</button>
   <img id="bannerImg" alt="Banner do bolão">
@@ -254,8 +262,9 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
   <section>
     <div class="sec-title">Premiação da rodada</div>
     <div class="arrecadado-hero">
-      <div class="arrecadado-lbl">🏆 Prêmio estimado</div>
+      <div class="arrecadado-lbl">🏆 Prêmio estimado da rodada</div>
       <div class="arrecadado-valor" id="valPote">R$ 0,00</div>
+      <div class="arrecadado-sub" id="valArrecadadoSub">0 apostas pagas</div>
     </div>
     <div class="prize-board">
       <div class="prize-cell">
@@ -271,7 +280,7 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         <div class="val" id="valAcumulado">R$ 0,00</div>
       </div>
       <div class="prize-cell gold">
-        <div class="lbl">Total arrecadado na rodada</div>
+        <div class="lbl">Total arrecadado</div>
         <div class="val" id="valArrecadado">R$ 0,00</div>
       </div>
     </div>
@@ -291,18 +300,26 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         <label for="betWhats">WhatsApp</label>
         <input id="betWhats" maxlength="20" inputmode="tel" placeholder="(77) 99999-9999">
       </div>
+      <label class="check-manter">
+        <input type="checkbox" id="betManterDados">
+        <span>Vou fazer mais de um palpite — manter meu nome e WhatsApp</span>
+      </label>
       <button class="btn btn-primary" id="btnEnviarPalpite">Confirmar palpite e pagar</button>
       <button class="btn btn-ghost" style="margin-top:8px" onclick="abrirSimulador()">💰 Simular quanto posso ganhar</button>
     </div>
   </section>
 
-  <!-- PALPITES PÚBLICOS -->
+  <!-- REGULAMENTO -->
   <section>
-    <div class="sec-title">Quem já apostou nesta rodada</div>
-    <div class="field" style="margin-bottom:10px">
-      <input id="buscaPalpite" placeholder="🔎 Buscar pelo seu nome ou WhatsApp" oninput="renderPublicPalpites()">
+    <div class="sec-title">Regulamento</div>
+    <div class="rules">
+      <div class="rule-row"><span class="rule-pts">3 pts</span><span><b>Cravar o placar exato</b> de um jogo.</span></div>
+      <div class="rule-row"><span class="rule-pts">1 pt</span><span><b>Acertar quem vence</b> (ou o empate), sem cravar o placar.</span></div>
+      <div class="rule-row"><span class="rule-pts">9 pts</span><span>Cravou os <b>3 placares</b>? Leva <span class="gold">todo o prêmio (80% da arrecadação + acumulado)</span>.</span></div>
+      <div class="rule-row"><span class="rule-pts">7 pts</span><span>Ninguém fez 9? Quem <b>cravou 2 placares e acertou o vencedor do outro jogo</b> leva <span class="gold">30% do prêmio</span> — o restante <b>acumula para a próxima rodada</b>.</span></div>
+      <div class="rule-row"><span class="rule-pts">20%</span><span>Da arrecadação de cada rodada fica com a <b>organização</b>.</span></div>
+      <div style="margin-top:6px">Só concorrem os palpites com <b>pagamento confirmado</b> via Pix. Havendo mais de um vencedor, o prêmio é dividido igualmente.</div>
     </div>
-    <div id="publicPalpitesArea"><div class="empty">Nenhum palpite enviado ainda.</div></div>
   </section>
 
   <!-- COMPARTILHAR -->
@@ -322,17 +339,13 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
     <div id="rankingArea"></div>
   </section>
 
-  <!-- REGULAMENTO -->
+  <!-- PALPITES PÚBLICOS -->
   <section>
-    <div class="sec-title">Regulamento</div>
-    <div class="rules">
-      <div class="rule-row"><span class="rule-pts">3 pts</span><span><b>Cravar o placar exato</b> de um jogo.</span></div>
-      <div class="rule-row"><span class="rule-pts">1 pt</span><span><b>Acertar quem vence</b> (ou o empate), sem cravar o placar.</span></div>
-      <div class="rule-row"><span class="rule-pts">9 pts</span><span>Cravou os <b>3 placares</b>? Leva <span class="gold">todo o prêmio (80% da arrecadação + acumulado)</span>.</span></div>
-      <div class="rule-row"><span class="rule-pts">7 pts</span><span>Ninguém fez 9? Quem <b>cravou 2 placares e acertou o vencedor do outro jogo</b> leva <span class="gold">30% do prêmio</span> — o restante <b>acumula para a próxima rodada</b>.</span></div>
-      <div class="rule-row"><span class="rule-pts">20%</span><span>Da arrecadação de cada rodada fica com a <b>organização</b>.</span></div>
-      <div style="margin-top:6px">Só concorrem os palpites com <b>pagamento confirmado</b> via Pix. Havendo mais de um vencedor, o prêmio é dividido igualmente.</div>
+    <div class="sec-title">Quem já apostou nesta rodada</div>
+    <div class="field" style="margin-bottom:10px">
+      <input id="buscaPalpite" placeholder="🔎 Buscar pelo seu nome ou WhatsApp" oninput="renderPublicPalpites()">
     </div>
+    <div id="publicPalpitesArea"><div class="empty">Nenhum palpite enviado ainda.</div></div>
   </section>
 
 </main>
@@ -362,10 +375,15 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
   <div class="modal">
     <h2>Área restrita <button class="close-x" onclick="closeOverlay('loginOverlay')">×</button></h2>
     <div class="field">
-      <label for="adminSenha">Senha da administração</label>
-      <input type="password" id="adminSenha" placeholder="••••••••">
+      <label for="adminEmail">E-mail</label>
+      <input type="email" id="adminEmail" autocomplete="username" placeholder="voce@exemplo.com">
+    </div>
+    <div class="field">
+      <label for="adminSenha">Senha</label>
+      <input type="password" id="adminSenha" autocomplete="current-password" placeholder="••••••••">
     </div>
     <button class="btn btn-primary" onclick="loginAdmin()">Entrar</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="recuperarSenha()">Esqueci minha senha</button>
   </div>
 </div>
 
@@ -436,6 +454,7 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         </div>
       </div>
       <div class="field"><input id="admBuscaPalpite" placeholder="🔎 Buscar por nome ou WhatsApp" oninput="renderAdminPalpites()"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-bottom:12px" onclick="exportarPalpitesCSV()">⬇️ Exportar palpites (CSV)</button>
       <div id="admPalpitesList"></div>
     </div>
 
@@ -456,8 +475,10 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
         <img id="cfgBannerPreview" class="thumb" style="display:none" alt="Banner atual">
         <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="removerBanner()">Remover banner</button>
       </div>
-      <div class="field"><label for="cfgSenha">Nova senha da administração (deixe em branco para manter)</label><input id="cfgSenha" type="password" maxlength="40" placeholder="••••••••"></div>
+      <div class="field"><label for="cfgSenha">Nova senha de acesso (mín. 6 caracteres — deixe em branco para manter)</label><input id="cfgSenha" type="password" autocomplete="new-password" maxlength="40" placeholder="••••••••"></div>
       <button class="btn btn-primary" onclick="salvarConfig()">Salvar configurações</button>
+      <div class="hr"></div>
+      <button class="btn btn-ghost" onclick="logoutAdmin()">Sair da administração</button>
     </div>
 
   </div>
@@ -489,6 +510,7 @@ footer{text-align:center;padding:24px 14px 10px;color:var(--chalk-dim);font-size
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script>
 /* =========================================================
    CONFIGURAÇÃO DO FIREBASE — COLE AQUI A SUA CONFIG
@@ -505,10 +527,10 @@ const firebaseConfig = {
   measurementId: "G-277Y46TN12"
 };
 const ROOT = 'placarCravado';          // raiz dos dados no Realtime Database
-const SENHA_PADRAO = 'admin123';       // usada enquanto nenhuma senha for salva
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
 
 /* ---------- Estado ---------- */
 let cfg = {};
@@ -554,6 +576,21 @@ function tempoRestanteMs(dataStr){
   if(isNaN(alvo)) return Infinity;
   return alvo - Date.now();
 }
+
+/* ---------- Fechamento automático das apostas ----------
+   As apostas encerram quando o primeiro jogo (o que começa mais cedo) inicia. */
+let autoCloseFeito = false;
+function fechamentoRodada(){
+  if(!rodada || !Array.isArray(rodada.jogos)) return Infinity;
+  const datas = rodada.jogos
+    .map(j => (j && j.data) ? new Date(j.data).getTime() : NaN)
+    .filter(t => !isNaN(t));
+  return datas.length ? Math.min(...datas) : Infinity;
+}
+function apostasEncerradasPorTempo(){
+  return Date.now() >= fechamentoRodada();
+}
+
 function fmtContagem(ms){
   if(ms <= 0) return 'Encerrado';
   const s = Math.floor(ms / 1000);
@@ -565,16 +602,12 @@ function fmtContagem(ms){
   return `⏱️ ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(seg).padStart(2,'0')}`;
 }
 setInterval(() => {
-  let algumFechouAgora = false;
   document.querySelectorAll('[data-contagem]').forEach(el => {
     const alvo = el.dataset.target;
     if(!alvo) return;
     const restante = tempoRestanteMs(alvo);
     if(restante <= 0){
-      if(el.textContent !== 'Encerrado'){
-        el.textContent = 'Encerrado';
-        algumFechouAgora = true;
-      }
+      if(el.textContent !== 'Encerrado') el.textContent = 'Encerrado';
       el.classList.remove('contagem-urgente');
       const idx = el.dataset.idx;
       if(idx !== undefined){
@@ -593,6 +626,15 @@ setInterval(() => {
       el.classList.toggle('contagem-urgente', restante < 3600000);
     }
   });
+
+  // Encerra a rodada assim que o primeiro jogo começa
+  if(rodada && rodada.status === 'aberta' && apostasEncerradasPorTempo() && !autoCloseFeito){
+    autoCloseFeito = true;
+    renderRodada(); // esconde o formulário de palpite para todos
+    if(isAdmin){    // admin online grava o fechamento no banco
+      db.ref(ROOT + '/rodadaAtual/status').set('fechada').catch(() => {});
+    }
+  }
 }, 1000);
 
 /* ---------- Tema claro/escuro ---------- */
@@ -635,7 +677,7 @@ function comprimirImagem(file, maxW, quality){
    3 pts: placar exato | 1 pt: acertou vencedor/empate | 0: errou      */
 function timeHtml(nome, escudo){
   const img = escudo
-    ? `<img class="shield" src="${escudo}" alt="${esc(nome)}">`
+    ? `<img class="shield" src="${esc(escudo)}" alt="${esc(nome)}">`
     : `<div class="shield-fallback">${esc((nome||'?').charAt(0).toUpperCase())}</div>`;
   return `${img}<span>${esc(nome||'')}</span>`;
 }
@@ -688,9 +730,15 @@ db.ref(ROOT + '/acumulado').on('value', snap => {
 });
 db.ref(ROOT + '/rodadaAtual').on('value', snap => {
   rodada = snap.val();
+  autoCloseFeito = false; // reavalia o fechamento a cada mudança de rodada
   attachPalpitesListener();
   renderRodada();
   renderAdminRodada();
+  const loader = $('appLoader');
+  if(loader && !loader.classList.contains('hide')){
+    loader.classList.add('hide');
+    setTimeout(() => loader.remove(), 350);
+  }
 });
 db.ref(ROOT + '/times').on('value', snap => {
   times = snap.val() || {};
@@ -698,6 +746,15 @@ db.ref(ROOT + '/times').on('value', snap => {
   renderAdminRodada(); // atualiza os selects de times
   if(!snap.val()) autoSeedTimesPadrao();
 });
+
+/* Segurança: se o Firebase não responder (offline/regras), não deixa a tela travada no loader */
+setTimeout(() => {
+  const loader = $('appLoader');
+  if(loader && !loader.classList.contains('hide')){
+    loader.classList.add('hide');
+    setTimeout(() => loader.remove(), 350);
+  }
+}, 8000);
 
 function attachPalpitesListener(){
   const num = rodada && rodada.numero;
@@ -773,11 +830,9 @@ function renderPrizeBoard(){
   const valor = Number(cfg.valorAposta) || 0;
   const pagos = contarPagos();
   const arrecadado = pagos * valor;
-  // Depois que a rodada já foi apurada, o "acumulado" salvo já inclui os 80%
-  // desta mesma arrecadação — então não soma de novo (isso causava o valor dobrado).
-  const jaApurada = rodada && rodada.status === 'apurada';
-  const pote = jaApurada ? acumulado : (arrecadado * 0.8 + acumulado);
+  const pote = arrecadado * 0.8 + acumulado;
   $('valArrecadado').textContent = brl(arrecadado);
+  $('valArrecadadoSub').textContent = pagos + (pagos === 1 ? ' aposta paga' : ' apostas pagas');
   $('valAposta').textContent = valor ? brl(valor) : '–';
   $('valApostadores').textContent = pagos;
   $('valAcumulado').textContent = brl(acumulado);
@@ -787,14 +842,15 @@ function renderPrizeBoard(){
 function renderRodada(){
   const area = $('gamesArea');
   const form = $('betFormArea');
-  const aberta = rodada && rodada.status === 'aberta' && Array.isArray(rodada.jogos) && rodada.jogos.length === 3;
+  const encerradaTempo = apostasEncerradasPorTempo();
+  const aberta = rodada && rodada.status === 'aberta' && !encerradaTempo && Array.isArray(rodada.jogos) && rodada.jogos.length === 3;
 
   $('roundNum').textContent = rodada && rodada.numero ? rodada.numero : '–';
   const statusTxt = !rodada ? 'sem rodada' :
-    rodada.status === 'aberta' ? 'apostas abertas' :
-    rodada.status === 'apurada' ? 'resultado publicado' : 'apostas encerradas';
+    rodada.status === 'apurada' ? 'resultado publicado' :
+    (rodada.status === 'aberta' && !encerradaTempo) ? 'apostas abertas' : 'apostas encerradas';
   $('roundStatus').textContent = statusTxt;
-  $('roundDot').className = 'dot' + (rodada && rodada.status === 'aberta' ? '' : ' closed');
+  $('roundDot').className = 'dot' + (aberta ? '' : ' closed');
 
   if(!aberta){
     if(rodada && Array.isArray(rodada.jogos) && rodada.jogos.length === 3){
@@ -884,6 +940,7 @@ function renderRanking(){
 /* ---------- Envio de palpite ---------- */
 $('btnEnviarPalpite').addEventListener('click', () => {
   if(!rodada || rodada.status !== 'aberta'){ toast('As apostas estão encerradas.'); return; }
+  if(apostasEncerradasPorTempo()){ toast('As apostas foram encerradas — o primeiro jogo já começou.'); renderRodada(); return; }
   $('avisoDuplicado').classList.remove('show');
   const nome = $('betNome').value.trim();
   const whats = soNumeros($('betWhats').value);
@@ -894,8 +951,9 @@ $('btnEnviarPalpite').addEventListener('click', () => {
   for(let i = 0; i < 3; i++){
     const inputA = $('betA'+i), inputB = $('betB'+i);
     if(inputA.disabled){ toast('O tempo do jogo '+(i+1)+' já esgotou. Não é mais possível apostar nesta rodada.'); return; }
-    const a = inputA.value, b = inputB.value;
-    if(a === '' || b === ''){ toast('Preencha o placar dos 3 jogos.'); inputA.focus(); return; }
+    // Campo não alterado vale 0 (o placeholder já mostra 0)
+    const a = inputA.value === '' ? '0' : inputA.value;
+    const b = inputB.value === '' ? '0' : inputB.value;
     const ga = Number(a), gb = Number(b);
     if(isNaN(ga)||isNaN(gb)||ga<0||gb<0||ga>99||gb>99){ toast('Placar inválido no jogo '+(i+1)+'.'); return; }
     jogos.push({ golsA: ga, golsB: gb });
@@ -919,7 +977,8 @@ $('btnEnviarPalpite').addEventListener('click', () => {
   }).then(() => {
     btn.disabled = false;
     abrirPagamento(nome, jogos);
-    $('betNome').value = ''; $('betWhats').value = '';
+    const manter = $('betManterDados').checked;
+    if(!manter){ $('betNome').value = ''; $('betWhats').value = ''; }
     for(let i = 0; i < 3; i++){ $('betA'+i).value = ''; $('betB'+i).value = ''; }
   }).catch(err => {
     btn.disabled = false;
@@ -1000,22 +1059,59 @@ $('siteHeader').addEventListener('click', () => {
   if(tapCount >= 5){
     tapCount = 0;
     if(isAdmin) openOverlay('adminOverlay');
-    else { $('adminSenha').value = ''; openOverlay('loginOverlay'); setTimeout(()=>$('adminSenha').focus(),150); }
+    else { $('adminEmail').value = ''; $('adminSenha').value = ''; openOverlay('loginOverlay'); setTimeout(()=>$('adminEmail').focus(),150); }
   }
 });
+$('adminEmail').addEventListener('keydown', e => { if(e.key === 'Enter') $('adminSenha').focus(); });
 $('adminSenha').addEventListener('keydown', e => { if(e.key === 'Enter') loginAdmin(); });
 
 function loginAdmin(){
+  const email = $('adminEmail').value.trim();
   const senha = $('adminSenha').value;
-  const senhaCorreta = cfg.senhAdmin || SENHA_PADRAO;
-  if(senha === senhaCorreta){
-    isAdmin = true;
-    closeOverlay('loginOverlay');
-    openOverlay('adminOverlay');
+  if(!email || !senha){ toast('Informe e-mail e senha.'); return; }
+  auth.signInWithEmailAndPassword(email, senha)
+    .then(() => {
+      $('adminSenha').value = '';
+      closeOverlay('loginOverlay');
+      openOverlay('adminOverlay');
+      toast('Bem-vindo à administração.');
+    })
+    .catch(err => {
+      const cod = err.code || '';
+      if(cod === 'auth/invalid-email') toast('E-mail inválido.');
+      else if(cod === 'auth/invalid-credential' || cod === 'auth/wrong-password' || cod === 'auth/user-not-found') toast('E-mail ou senha incorretos.');
+      else if(cod === 'auth/too-many-requests') toast('Muitas tentativas. Tente novamente mais tarde.');
+      else toast('Erro ao entrar: ' + err.message);
+    });
+}
+
+/* Mantém o estado de admin sincronizado com a sessão do Firebase */
+auth.onAuthStateChanged(user => {
+  isAdmin = !!user;
+  if(isAdmin){
     renderAdminRodada();
     renderAdminPalpites();
-    toast('Bem-vindo à administração.');
-  } else toast('Senha incorreta.');
+  } else {
+    closeOverlay('adminOverlay');
+  }
+});
+
+function logoutAdmin(){
+  auth.signOut()
+    .then(() => { closeOverlay('adminOverlay'); toast('Você saiu da administração.'); })
+    .catch(err => toast('Erro ao sair: ' + err.message));
+}
+
+function recuperarSenha(){
+  const email = $('adminEmail').value.trim();
+  if(!email){ toast('Digite seu e-mail acima primeiro.'); $('adminEmail').focus(); return; }
+  auth.sendPasswordResetEmail(email)
+    .then(() => toast('Enviamos um link de redefinição para seu e-mail.'))
+    .catch(err => {
+      if(err.code === 'auth/invalid-email') toast('E-mail inválido.');
+      else if(err.code === 'auth/user-not-found') toast('Não há conta com esse e-mail.');
+      else toast('Erro: ' + err.message);
+    });
 }
 
 function switchTab(btn){
@@ -1111,8 +1207,11 @@ function salvarRodada(){
 
   const numero = rodada && rodada.numero ? rodada.numero : 1;
   const status = rodada && rodada.status ? rodada.status : 'aberta';
+  // Horário de fechamento = início do primeiro jogo (o mais cedo). Reforça o corte na regra do Firebase.
+  const datas = jogos.map(j => j.data ? new Date(j.data).getTime() : NaN).filter(t => !isNaN(t));
+  const fechamento = datas.length ? Math.min(...datas) : null;
   Promise.all([
-    db.ref(ROOT + '/rodadaAtual').update({ numero, status, jogos }),
+    db.ref(ROOT + '/rodadaAtual').update({ numero, status, jogos, fechamento }),
     db.ref(ROOT + '/config/valorAposta').set(valor)
   ]).then(() => toast('Rodada salva.'))
     .catch(err => toast('Erro: ' + err.message));
@@ -1175,7 +1274,7 @@ function renderAdminTimes(){
     .sort((a,b) => a[1].nome.localeCompare(b[1].nome, 'pt-BR'))
     .map(([id, t]) => `
     <div class="team-item">
-      ${t.escudo ? `<img src="${t.escudo}" alt="${esc(t.nome)}">` : `<div class="shield-fallback" style="width:32px;height:32px;font-size:13px">${esc(t.nome.charAt(0).toUpperCase())}</div>`}
+      ${t.escudo ? `<img src="${esc(t.escudo)}" alt="${esc(t.nome)}">` : `<div class="shield-fallback" style="width:32px;height:32px;font-size:13px">${esc(t.nome.charAt(0).toUpperCase())}</div>`}
       <span class="tname">${esc(t.nome)}</span>
       <label class="tdel" style="color:var(--grass);cursor:pointer" title="Subir escudo">
         📷<input type="file" accept="image/*" style="display:none" onchange="uploadEscudoTime('${esc(id)}', this)">
@@ -1269,7 +1368,10 @@ function calcularApuracao(){
   const pagos = Object.entries(palpites).filter(([,p]) => p && p.pago);
   const arrecadado = pagos.length * valor;
   const taxaOrg = arrecadado * 0.20;
-  const premioTotal = arrecadado * 0.80 + acumulado;
+  // Acumulado que a rodada usa: fica travado na 1ª apuração, para que reabrir e
+  // reapurar não conte o acumulado em dobro (usa o valor com que a rodada começou).
+  const acumuladoBase = (rodada.acumuladoInicial != null) ? Number(rodada.acumuladoInicial) : acumulado;
+  const premioTotal = arrecadado * 0.80 + acumuladoBase;
 
   const pontuados = pagos.map(([id, p]) => {
     const { total, cravadas } = pontosTotais(p, resultados);
@@ -1279,26 +1381,27 @@ function calcularApuracao(){
   const ganhadores9 = pontuados.filter(p => p.total === 9);            // 3 placares cravados
   const ganhadores7 = pontuados.filter(p => p.total === 7);            // 2 cravados + vencedor do outro
 
+  const round2 = v => Math.round(v * 100) / 100;
   let vencedores = [], valorPorVencedor = 0, novoAcumulado = 0, regra = '';
   if(ganhadores9.length){
     vencedores = ganhadores9.map(g => g.nome);
-    valorPorVencedor = premioTotal / ganhadores9.length;
+    valorPorVencedor = round2(premioTotal / ganhadores9.length);
     novoAcumulado = 0;
     regra = 'Cravou os 3 placares (9 pontos): leva 100% do prêmio.';
   } else if(ganhadores7.length){
     vencedores = ganhadores7.map(g => g.nome);
-    valorPorVencedor = (premioTotal * 0.30) / ganhadores7.length;
-    novoAcumulado = premioTotal * 0.70;
+    valorPorVencedor = round2((premioTotal * 0.30) / ganhadores7.length);
+    novoAcumulado = round2(premioTotal * 0.70);
     regra = '2 placares cravados + vencedor do outro jogo (7 pontos): recebe 30% do prêmio; 70% acumula.';
   } else {
-    novoAcumulado = premioTotal;
+    novoAcumulado = round2(premioTotal);
     regra = 'Ninguém atingiu as condições de prêmio: todo o valor acumula para a próxima rodada.';
   }
 
   const resumo =
     `Apostas pagas: <b>${pagos.length}</b> × ${brl(valor)} = <b>${brl(arrecadado)}</b><br>` +
     `Organização (20%): <span class="green">${brl(taxaOrg)}</span><br>` +
-    `Prêmio (80% + acumulado ${brl(acumulado)}): <span class="gold">${brl(premioTotal)}</span><br>` +
+    `Prêmio (80% + acumulado ${brl(acumuladoBase)}): <span class="gold">${brl(premioTotal)}</span><br>` +
     `<br>${esc(regra)}<br>` +
     (vencedores.length
       ? `Vencedor(es): <b>${vencedores.map(esc).join(', ')}</b> — <span class="gold">${brl(valorPorVencedor)}</span> cada<br>`
@@ -1307,7 +1410,7 @@ function calcularApuracao(){
 
   $('apuraResumo').innerHTML = `<div class="apura-box">${resumo}</div>`;
   $('btnConfirmarApuracao').style.display = 'block';
-  apuracaoPreview = { resultados, vencedores, valorPorVencedor, novoAcumulado, taxaOrg, premioTotal, arrecadado, resumo };
+  apuracaoPreview = { resultados, vencedores, valorPorVencedor, novoAcumulado, taxaOrg, premioTotal, arrecadado, acumuladoBase, resumo };
 }
 
 function confirmarApuracao(){
@@ -1320,7 +1423,8 @@ function confirmarApuracao(){
       status: 'apurada',
       resultados: a.resultados,
       vencedores: a.vencedores,
-      resumoApuracao: a.resumo
+      resumoApuracao: a.resumo,
+      acumuladoInicial: a.acumuladoBase
     }),
     db.ref(ROOT + '/acumulado').set(Math.round(a.novoAcumulado * 100) / 100),
     db.ref(ROOT + '/historico/r' + num).set({
@@ -1421,6 +1525,7 @@ function renderAdminPalpites(){
 /* ---------- Editar palpite (admin) ---------- */
 let editandoPalpiteId = null;
 function abrirEdicaoPalpite(id){
+  if(rodadaApurada()) return;
   const p = palpites[id];
   if(!p){ toast('Palpite não encontrado.'); return; }
   editandoPalpiteId = id;
@@ -1469,16 +1574,49 @@ function waIconHtml(nome, whatsapp, mensagem){
   </a>`;
 }
 
+/* Bloqueia mexer em palpites depois que a rodada foi apurada (evita
+   descasar o ranking/acumulado já publicados). Reabra a rodada para editar. */
+function rodadaApurada(){
+  if(rodada && rodada.status === 'apurada'){
+    toast('Rodada já apurada. Reabra as apostas para alterar palpites.');
+    return true;
+  }
+  return false;
+}
+
 function togglePago(id, atual){
+  if(rodadaApurada()) return;
   db.ref(ROOT + '/palpites/r' + rodada.numero + '/' + id + '/pago').set(!atual)
     .catch(err => toast('Erro: ' + err.message));
 }
 
 function excluirPalpite(id){
+  if(rodadaApurada()) return;
   if(!confirm('Excluir este palpite?')) return;
   db.ref(ROOT + '/palpites/r' + rodada.numero + '/' + id).remove()
     .then(() => toast('Palpite excluído.'))
     .catch(err => toast('Erro: ' + err.message));
+}
+
+function exportarPalpitesCSV(){
+  const entradas = Object.values(palpites).sort((a,b) => (a.ts||0) - (b.ts||0));
+  if(!entradas.length){ toast('Nenhum palpite para exportar.'); return; }
+  const aspas = s => `"${String(s == null ? '' : s).replace(/"/g,'""')}"`;
+  const linhas = [['Nome','WhatsApp','Jogo 1','Jogo 2','Jogo 3','Pago','Enviado em'].map(aspas).join(',')];
+  entradas.forEach(p => {
+    const jg = i => (p.jogos && p.jogos[i]) ? `${p.jogos[i].golsA}x${p.jogos[i].golsB}` : '';
+    const quando = p.ts ? new Date(p.ts).toLocaleString('pt-BR') : '';
+    linhas.push([p.nome, p.whatsapp, jg(0), jg(1), jg(2), p.pago ? 'Sim' : 'Não', quando].map(aspas).join(','));
+  });
+  const csv = '\uFEFF' + linhas.join('\r\n'); // BOM p/ acentos no Excel
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `palpites-rodada-${(rodada && rodada.numero) || 'x'}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('CSV exportado.');
 }
 
 /* ---------- Admin: configurações ---------- */
@@ -1490,7 +1628,6 @@ function salvarConfig(){
     whatsAdmin: soNumeros($('cfgWhats').value) || null
   };
   const novaSenha = $('cfgSenha').value;
-  if(novaSenha) updates.senhAdmin = novaSenha;
 
   const tarefas = [];
   const qrFile = $('cfgQrFile').files[0];
@@ -1501,9 +1638,20 @@ function salvarConfig(){
   Promise.all(tarefas)
     .then(() => db.ref(ROOT + '/config').update(updates))
     .then(() => {
+      if(novaSenha){
+        const user = auth.currentUser;
+        if(!user) throw new Error('Sessão expirada. Entre novamente para trocar a senha.');
+        return user.updatePassword(novaSenha)
+          .then(() => toast('Configurações e nova senha salvas.'))
+          .catch(err => {
+            if(err.code === 'auth/weak-password') throw new Error('A senha deve ter pelo menos 6 caracteres.');
+            if(err.code === 'auth/requires-recent-login') throw new Error('Por segurança, saia e entre de novo antes de trocar a senha.');
+            throw err;
+          });
+      }
       toast('Configurações salvas.');
-      $('cfgSenha').value = ''; $('cfgQrFile').value = ''; $('cfgBannerFile').value = '';
     })
+    .then(() => { $('cfgSenha').value = ''; $('cfgQrFile').value = ''; $('cfgBannerFile').value = ''; })
     .catch(err => toast('Erro: ' + err.message));
 }
 
